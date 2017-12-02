@@ -23,7 +23,8 @@ def check_user(telegramID):
     with conn:
         cur = conn.cursor()
         cur.execute('SELECT * FROM Utenti WHERE TelegramID=?', (telegramID,))
-        return cur.fetchall()
+        a = cur.fetchall()
+        return a
 
 
 def change_status(new_status, telegramID):
@@ -59,3 +60,9 @@ def register_vote(telegramID, gradesID, value, subject, date):
     with conn:
         cur = conn.cursor()
         cur.execute('INSERT INTO Voti (user, gradesID, value, subject, date) VALUES (?, ?, ?, ?, ?)', (telegramID, gradesID, value, subject, date))
+
+def delete_user_grades(telegramID):
+    conn = sqlite3.connect('voti.db')
+    with conn:
+        cur = conn.cursor()
+        cur.execute('DELETE FROM Voti WHERE user=?', (telegramID,))
