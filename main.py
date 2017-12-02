@@ -55,7 +55,7 @@ def login(s, username, password):
 def start(chat, message):
     print("START from"+message.sender.first_name)
     user = sql_functions.check_user(message.sender.id)
-    chat.send("Benvenuto su NomeBot")
+    chat.send("Benvenuto su ClasseVivaVotiBot")
     if user:
         if user[0][1] is None or user[0][2] is None:
             chat.send("Sei gia registrato, ma devi reinserire i dati, inviami il tuo username:")
@@ -74,6 +74,7 @@ def start1(chat, message):
 
 
 def start2(chat, message):
+    chat.sendAction('typing')
     s0 = classeviva.Session()
     s = login(s0, sql_functions.check_user(message.sender.id)[0][1], message.text)
     if s == False:
@@ -89,7 +90,6 @@ def start2(chat, message):
     chat.send("Ottimo, registrazione completata\n"
               "Ora il bot controllera' se ti arriveranno nuovi voti!\n"
               "Intanto puoi visualizzare quelli che hai adesso usando i comandi qua sotto")
-    
 
 
 def check_status(chat, message):
