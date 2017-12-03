@@ -19,7 +19,7 @@ def check_vote():
         old_grades_list = []
         for i in old_grades:
             old_grades_list.append(i[1])
-        newgrades = s.grades()['grades']
+        newgrades = get_grades(s)
         m = "Ehi, hai nuovi voti:\n"
         for g in newgrades:
             if g['evtId'] not in old_grades_list:
@@ -32,7 +32,7 @@ def check_vote():
 
 
 def write_first_vote(userID, s):
-    g = s.grades()['grades']
+    g = get_grades(s)
     sql_functions.delete_user_grades(userID)
     for i in g:
         sql_functions.register_vote(userID, i['evtId'], i['decimalValue'], i['subjectDesc'], i['evtDate'])
@@ -49,8 +49,16 @@ def login(s, username, password):
        except classeviva.AuthenticationFailedError:
            return False
        except Exception:
-           print("ClassevivaConnctionError - Retry")
+           print("ClassevivaConnectionError - Retry")
            time.sleep(0.5)
+
+def get_grades(s):
+    while True:
+        try:
+            s.grades()['grades']
+            return grades
+        except Exception:
+            print("ClassevivaConnectionError - Retry")
 
 def start(chat, message):
     print("START from"+message.sender.first_name)
