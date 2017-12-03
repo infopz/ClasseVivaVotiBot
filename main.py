@@ -55,7 +55,7 @@ def login(s, username, password):
 def get_grades(s):
     while True:
         try:
-            s.grades()['grades']
+            grades = s.grades()['grades']
             return grades
         except Exception:
             print("ClassevivaConnectionError - Retry")
