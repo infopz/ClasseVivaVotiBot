@@ -9,22 +9,32 @@ import key
 bot = pzgram.Bot(key.bot_key)
 
 
+def check_new_vote(u):
+    s0 = classeviva.Session()
+    password = triple_des(key.master_key).decrypt(u[2], padmode=2).decode('utf-8')
+    s = login(s0, u[1], password)
+    old_grades = sql_functions.get_old_grades(u[0])
+    old_grades_list = []
+    for i in old_grades:
+        old_grades_list.append(i[1])
+    newgrades = get_grades(s)
+    nuovi_voti = []
+    for g in newgrades:
+        if g['evtId'] not in old_grades_list:
+            sql_functions.register_vote(u[0], g['evtId'], g['decimalValue'], g['subjectDesc'], g['evtDate'])
+            nuovi_voti.append(g)
+    return nuovi_voti
+
+
 def check_vote():
     users = sql_functions.get_user_list()
     for u in users:
-        s0 = classeviva.Session()
-        password = triple_des(key.master_key).decrypt(u[2], padmode=2).decode('utf-8')
-        s = login(s0, u[1], password)
-        old_grades = sql_functions.get_old_grades(u[0])
-        old_grades_list = []
-        for i in old_grades:
-            old_grades_list.append(i[1])
-        newgrades = get_grades(s)
         m = "Ehi, hai nuovi voti:\n"
-        for g in newgrades:
-            if g['evtId'] not in old_grades_list:
-                sql_functions.register_vote(u[0], g['evtId'], g['decimalValue'], g['subjectDesc'], g['evtDate'])
-                m += f"{g['subjectDesc']}\n*{g['decimalValue']}* - {g['evtDate']}\n"
+        nuovi_voti = check_new_vote(u)
+        if len(nuovi_voti) == 0:
+            continue
+        for g in nuovi_voti:
+            m += f"{g['subjectDesc']}\n*{g['decimalValue']}* - {g['evtDate']}\n"
         if m != "Ehi, hai nuovi voti:\n":
             pzgram.Chat(u[0], bot).send(m)
             print("NEWVOTE "+str(u[0]))
@@ -37,8 +47,23 @@ def write_first_vote(userID, s):
     for i in g:
         sql_functions.register_vote(userID, i['evtId'], i['decimalValue'], i['subjectDesc'], i['evtDate'])
 
+
 def voti_command(chat, message):
-    chat.send("Work in progress")
+    old_grades = sql_functions.get_old_grades(message.sender.id)
+    m = "Ecco i tuoi voti:\n"
+    for i in old_grades:
+        m += f"{i[3]}\n*{i[2]}* - {i[4]}\n\n"
+    if m != "Ecco i tuoi voti:\n":
+        chat.send(m)
+    else:
+       chat.send("Non hai ancora nessun voto")
+    nuovi_voti = check_new_vote(sql_functions.check_user(message.sender.id)[0])
+    if len(nuovi_voti):
+        m = "*Ehi, ho trovato anche dei nuovi voti, eccoli:*\n"
+        for i in nuovi_voti:
+            m += f"{i['subjectDesc']}\n*{i['decimalValue']}* - {i['evtDate']}\n\n"
+        chat.send(m)
+    
 
 
 def login(s, username, password):
@@ -108,7 +133,8 @@ def check_status(chat, message):
         start2(chat, message)
 
 
-bot.set_commands({"/start": start})
+bot.set_commands({"/start": start, '/grades': voti_command})
 bot.set_function({"after_division": check_status})
-bot.set_timers({60: check_vote})
+bot.set_timers({2000: check_vote})
+bot.set_keyboard([["/grades"]])
 bot.run()

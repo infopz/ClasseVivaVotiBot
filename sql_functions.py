@@ -14,7 +14,7 @@ def get_old_grades(telegramID):
     conn = sqlite3.connect('voti.db')
     with conn:
         cur = conn.cursor()
-        cur.execute('SELECT * FROM Voti WHERE user=?', (telegramID,))
+        cur.execute('SELECT * FROM Voti WHERE user=? ORDER BY subject', (telegramID,))
         return cur.fetchall()
 
 
