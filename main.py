@@ -28,6 +28,7 @@ def check_new_vote(u):
 
 def check_vote():
     users = sql_functions.get_user_list()
+    toRemove = list()
     for u in users:
         m = "Ehi, hai nuovi voti:\n"
         nuovi_voti = check_new_vote(u)
@@ -36,9 +37,14 @@ def check_vote():
         for g in nuovi_voti:
             m += f"{g['subjectDesc']}\n*{g['decimalValue']}* - {g['evtDate']}\n"
         if m != "Ehi, hai nuovi voti:\n":
-            pzgram.Chat(u[0], bot).send(m)
+            r = pzgram.Chat(u[0], bot).send(m)
+            if str(r).endswith("403"): # USER BLOCK BOT
+                toRemove.append(u[0])
             print("NEWVOTE "+str(u[0]))
         time.sleep(2)
+    for r in toRemove:
+        sql_functions.delete_user(r)
+        print("User "+str(r)+" removed")
 
 
 def write_first_vote(userID, s):
@@ -63,7 +69,15 @@ def voti_command(chat, message):
         for i in nuovi_voti:
             m += f"{i['subjectDesc']}\n*{i['decimalValue']}* - {i['evtDate']}\n\n"
         chat.send(m)
-    
+
+def medie_command(chat, message):
+    avg = sql_functions.get_averages(message.sender.id)
+    m = "Ecco le medie:\n"
+    for s in avg:
+        m += "*" + "{0:.2f}".format(s[1]) + "* - " + str(s[0]) + "\n\n"
+    if m == "Ecco le medie:\n":
+        m = "Non hai ancora nessun voto"
+    chat.send(m)
 
 
 def login(s, username, password):
@@ -88,21 +102,25 @@ def get_grades(s):
 def start(chat, message):
     print("START from"+message.sender.first_name)
     user = sql_functions.check_user(message.sender.id)
-    chat.send("Benvenuto su ClasseVivaVotiBot")
+    chat.send("Benvenuto su *ClasseVivaVotiBot*\n"
+              "Questo bot controlla ogni 2 ore l'arrivo di nuovi voti, inoltre ti permette di visualizzarli facilemte tramite i suoi comandi\n"
+              "Condizioni d'uso del bot [qui](http://infopz.hopto.org/votibot.html)\n"
+              "\nIl bot e' completamente [open-source](https://github.com/infopz/botVoti2)\n"
+              "Per problemi contattare @infopz", disable_preview=True)
     if user:
         if user[0][1] is None or user[0][2] is None:
-            chat.send("Sei gia registrato, ma devi reinserire i dati, inviami il tuo username:")
+            chat.send("Sei gia registrato, ma devi reinserire i dati, inviami il tuo username:", no_keyboard=True)
             sql_functions.change_status('start1', message.sender.id)
         else:
-            chat.send("Ti sei gia registrato, ora puoi utilizzare il bot!")
+            chat.send("Avevi gia' inserito i tuoi dati, puoi utilizzare il bot!")
     else:
         sql_functions.register_user(message.sender.id, 'start1')
-        chat.send("Ti sei registrato sul database, ora per completare la registrazione inviami il tuo username di ClasseViva")
+        chat.send("Per iniziare, inviami il tuo username/email di ClasseViva", no_keyboard=True)
 
 
 def start1(chat, message):
     sql_functions.register_username(message.sender.id, message.text)
-    chat.send("Username registrato, ora inviami la password")
+    chat.send("Username registrato, ora inviami la password\nNon ti preoccupare, la tua password viene cifrata", no_keyboard=True)
     sql_functions.change_status('start2', message.sender.id)
 
 
@@ -111,8 +129,8 @@ def start2(chat, message):
     s0 = classeviva.Session()
     s = login(s0, sql_functions.check_user(message.sender.id)[0][1], message.text)
     if s == False:
-        chat.send("I dati di login che hai inserito non sono corretti")
-        chat.send("Scrivimi il tuo username/email")
+        chat.send("I dati di login che hai inserito non sono corretti", no_keyboard=True)
+        chat.send("Scrivimi il tuo username/email", no_keyboard=True)
         sql_functions.change_status("start1", message.sender.id)
         return
     password_crypted = triple_des(key.master_key).encrypt(message.text, padmode=2)
@@ -122,7 +140,7 @@ def start2(chat, message):
     print("REGISTER "+message.sender.first_name)
     chat.send("Ottimo, registrazione completata\n"
               "Ora il bot controllera' se ti arriveranno nuovi voti!\n"
-              "Intanto puoi visualizzare quelli che hai adesso usando i comandi qua sotto")
+              "Intanto puoi visualizzare quelli che hai gia' usando i comandi qua sotto")
 
 
 def check_status(chat, message):
@@ -133,8 +151,8 @@ def check_status(chat, message):
         start2(chat, message)
 
 
-bot.set_commands({"/start": start, '/grades': voti_command})
+bot.set_commands({"/start": start, '/voti': voti_command, '/medie': medie_command})
 bot.set_function({"after_division": check_status})
 bot.set_timers({2000: check_vote})
-bot.set_keyboard([["/grades"]])
+bot.set_keyboard([["/voti", "/medie"]])
 bot.run()

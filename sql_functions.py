@@ -23,8 +23,7 @@ def check_user(telegramID):
     with conn:
         cur = conn.cursor()
         cur.execute('SELECT * FROM Utenti WHERE TelegramID=?', (telegramID,))
-        a = cur.fetchall()
-        return a
+        return cur.fetchall()
 
 
 def change_status(new_status, telegramID):
@@ -66,3 +65,19 @@ def delete_user_grades(telegramID):
     with conn:
         cur = conn.cursor()
         cur.execute('DELETE FROM Voti WHERE user=?', (telegramID,))
+
+
+def delete_user(telegramID):
+    delete_user_grades(telegramID)
+    conn = sqlite3.connect('voti.db')
+    with conn:
+        cur = conn.cursor()
+        cur.execute('DELETE FROM Utenti WHERE TelegramID=?', (telegramID,))
+
+
+def get_averages(telegramID):
+    conn = sqlite3.connect('voti.db')
+    with conn:
+        cur = conn.cursor()
+        cur.execute('SELECT subject, avg(value) FROM Voti WHERE user=? GROUP BY subject', (telegramID,))
+        return cur.fetchall()
