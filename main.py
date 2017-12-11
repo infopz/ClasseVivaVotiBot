@@ -13,6 +13,9 @@ def check_new_vote(u):
     s0 = classeviva.Session()
     password = triple_des(key.master_key).decrypt(u[2], padmode=2).decode('utf-8')
     s = login(s0, u[1], password)
+    if s == False:
+        send_not_valid(u[0])
+        return False
     old_grades = sql_functions.get_old_grades(u[0])
     old_grades_list = []
     for i in old_grades:
@@ -32,6 +35,8 @@ def check_vote():
     for u in users:
         m = "Ehi, hai nuovi voti:\n"
         nuovi_voti = check_new_vote(u)
+        if nuovi_voti == False:
+            continue
         if len(nuovi_voti) == 0:
             continue
         for g in nuovi_voti:
@@ -45,6 +50,12 @@ def check_vote():
     for r in toRemove:
         sql_functions.delete_user(r)
         print("User "+str(r)+" removed")
+
+def send_not_valid(user):
+    print(user)
+    pzgram.Chat(user, bot).send("Ho rilevato che i dati inseiriti non sono piu corretti\nNel caso tu non abbia fatto nessuna modifica contatta @infopz", no_keyboard=True)
+    pzgram.Chat(user, bot).send("Inserisci il tuo username/email", no_keyboard=True)
+    sql_functions.change_status('start1', user)
 
 
 def write_first_vote(userID, s):
@@ -64,6 +75,8 @@ def voti_command(chat, message):
     else:
        chat.send("Non hai ancora nessun voto")
     nuovi_voti = check_new_vote(sql_functions.check_user(message.sender.id)[0])
+    if nuovi_voti == False:
+        return
     if len(nuovi_voti):
         m = "*Ehi, ho trovato anche dei nuovi voti, eccoli:*\n"
         for i in nuovi_voti:
@@ -103,12 +116,12 @@ def start(chat, message):
     print("START from"+message.sender.first_name)
     user = sql_functions.check_user(message.sender.id)
     chat.send("Benvenuto su *ClasseVivaVotiBot*\n"
-              "Questo bot controlla ogni 2 ore l'arrivo di nuovi voti, inoltre ti permette di visualizzarli facilemte tramite i suoi comandi\n"
-              "Condizioni d'uso del bot [qui](http://infopz.hopto.org/votibot.html)\n"
+              "Questo bot controlla ogni 2 ore l'arrivo di nuovi voti, inoltre ti permette di visualizzarli facilemte tramite i suoi comandi\n\n"
+              "*Continuando con il login si dichiara di aver letto ed accettato l'Informativa per il Trattamento dei Dati Personali* accessibile a [questo indirizzo](http://infopz.hopto.org/votibot.html).\n"
               "\nIl bot e' completamente [open-source](https://github.com/infopz/botVoti2)\n"
               "Per problemi contattare @infopz", disable_preview=True)
     if user:
-        if user[0][1] is None or user[0][2] is None:
+        if user[0][1] is None or user[0][2] is None or user[0][3] != "":
             chat.send("Sei gia registrato, ma devi reinserire i dati, inviami il tuo username:", no_keyboard=True)
             sql_functions.change_status('start1', message.sender.id)
         else:
@@ -153,6 +166,6 @@ def check_status(chat, message):
 
 bot.set_commands({"/start": start, '/voti': voti_command, '/medie': medie_command})
 bot.set_function({"after_division": check_status})
-bot.set_timers({2000: check_vote})
+bot.set_timers({7200: check_vote})
 bot.set_keyboard([["/voti", "/medie"]])
 bot.run()
